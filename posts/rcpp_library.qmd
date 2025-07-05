@@ -1,0 +1,77 @@
+---
+title: "Using external libraries with Rcpp"
+author: "James Eapen"
+date: "2025-06-10"
+categories: [R, Rcpp, htslib]
+eval: false
+include-in-header:
+  - text: <script src="../resources/lang-tag.js"></script>
+---
+
+Developing R packages using Rcpp does not generally require using external
+libraries. When you do need them, they're usually available as R packages like
+RcppEigen, RcppArmadillo which take care of linking header files correctly. I've
+been working on [iscream](https://huishenlab.github.io/iscream), a package to
+read data from BED files by genomic region. Currently the Rsamtools package from
+Bioconductor provides a way to do this powered by the *Rhtslib* package.
+*Rhtslib* bundles the *htslib* C library used to work on sequencing files like
+SAM, BAM, and BED.
+
+BED files contain genomic region information and are usually stored compressed.
+*htslib* provides a way to query records from these compressed files given a set
+of regions. While Rsamtools can do this in R, it returns raw strings without
+parsing them. It also requires a GenomicRanges object so a BED file in data
+frame format, or a vector of region string could not be used directly. I didn't
+want to use *Rhtslib* since it tends to update very slowly and I wanted a
+*htslib* that was more up-to-date. I was also unsure if having a Bioconductor
+dependency would make a CRAN submission harder.
+
+At first I just used a nix shell hook to set htslib library and object paths as
+environment variables
+
+```nix
+...
+in mkShell {
+  nativeBuildInputs = [
+    ...
+];
+shellHook = ''
+export I_R=${pkgs.R}/lib/R/include/
+shellHook = ''
+  export I_HTSLIB=${pkgs.htslib}/include/
+  export L_HTSLIB=${pkgs.htslib}/lib/libhts.a
+  export L_CURL=${pkgs.curl.out}/lib/libcurl.so
+...
+''
+```
+
+and hardcoded the required paths in `Makevars`:
+
+```Makefile
+PKG_CPPFLAGS=-I $(I_HTSLIB)
+PKG_LIBS=$(L_HTSLIB) $(L_CURL) $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+```
+
+This was obviously temporary since the flags are specific to the nix htslib
+package. I then learned to use `pkg-config` to pass *htslib* include flags to
+`Makevars` to compile and install the package:
+
+```Makefile
+PKG_CPPFLAGS=`pkg-config --cflags htslib`
+PKG_LIBS=`pkg-config --libs htslib` $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+```
+
+I then found the [curl package](https://cran.r-project.org/package=curl) which
+uses a configure script to find, verify and use a system library. I could now
+find and create the Makevars file dynamically using a Makevars.in:
+
+```Makefile
+CXX_STD=CXX17
+PKG_CPPFLAGS=@cflags@
+PKG_LIBS=@libs@ $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS=$(SHLIB_OPENMP_CXXFLAGS)
+```
+
+The configure script replaces `@cflags@` and `@libs@` with the correct flags.
