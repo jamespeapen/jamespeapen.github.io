@@ -1,0 +1,21 @@
+---
+title: "htslib is much faster with libdeflate"
+author: "James Eapen"
+date: "2025-06-13"
+categories: [htslib]
+eval: false
+include-in-header:
+  - text: <script src="../resources/lang-tag.js"></script>
+---
+
+While looking for *htslib* sources that didn't require admin rights, I tried the
+*htslib* from conda. Running the benchmarks again I saw that iscream got a lot
+faster, up to twice as fast in some cases, with the conda *htslib* compared to the
+*htslib* I was using on our HPC. I couldn't figure out why and, after a lot of
+searching, I re-read the INSTALL manual which said
+
+>     libdeflate (optional, but strongly recommended for faster gzip)
+
+Examining the *htslib* object file in conda I saw that it was compiled with
+libdeflate while the HPC *htslib* module was not.
+
