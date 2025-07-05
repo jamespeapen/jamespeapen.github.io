@@ -12,9 +12,20 @@
         R
         quarto
       ];
+      rSys = with pkgs.rPackages; [
+        renv
+        yaml
+      ];
+      rData = with pkgs.rPackages; [
+      ];
   in {
     devShells.default = pkgs.mkShell {
-      buildInputs = sysDeps;
+      buildInputs = sysDeps ++ rSys ++ rData;
+     shellHook = ''
+        mkdir -p "$HOME/.R"
+        export R_LIBS_USER="$HOME/.R"
+        R -q -e "renv::lockfile_write(renv::lockfile_create())"
+        '';
     };
   });
 }
