@@ -1,0 +1,24 @@
+---
+title: "Software"
+---
+
+## R
+
+### [ceas](https://jamespeapen.github.io/ceas)
+
+An R package to analyse Seahorse data.
+
+[{{< fa brands r-project size=2x >}}](https://cran.r-project.org/package=ceas)&nbsp;&nbsp;&nbsp;&nbsp;[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/ceas)
+
+### [iscream](https://huishenlab.github.io/iscream)
+
+An R package to query and summarize BED files fast
+
+[{{< fa brands github size=2x >}}](https://github.com/huishenlab/iscream)
+
+
+### [compartmap](https://huishenlab.github.io/compartmap)
+
+An R package to infer chromatin compartments from scRNA/scATAC data.
+
+[{{< fa brands github size=2x >}}](https://github.com/huishenlab/compartmap)
