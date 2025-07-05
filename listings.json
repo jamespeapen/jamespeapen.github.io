@@ -2,9 +2,6 @@
   {
     "listing": "/index.html",
     "items": [
-      "/posts/libdeflate.html",
-      "/posts/rcpp_library.html",
-      "/posts/spotlight/index.html",
       "/posts/vimmy/index.html"
     ]
   }
