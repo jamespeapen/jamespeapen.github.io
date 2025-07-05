@@ -1,0 +1,18 @@
+---
+title: "About"
+#image: profile.jpg
+about:
+  template: solana
+  links:
+    - icon: github
+      text: Github
+      href: https://github.com/jamespeapen
+    - text: "{{< ai orcid >}} ORCiD"
+      href: https://orcid.org/0000-0001-6016-3598
+    - text: "{{< ai google-scholar >}} Google Scholar"
+      href: https://scholar.google.com/citations?user=xAWzm0EAAAAJ
+---
+
+I'm a 5<sup>th</sup>-year PhD student in the [Shen
+lab](https://shenlab.vai.org/) at Van Andel Institute. I work on developing
+tools to study DNA methylation and chromatin architecture in Fallopian tube.
