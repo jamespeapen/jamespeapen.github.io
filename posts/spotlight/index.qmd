@@ -1,0 +1,174 @@
+---
+title: "spotlight"
+subtitle: "Find files, preview or open them, copy paths, drag and drop"
+author: "James Eapen"
+date: "Aug 01, 2023"
+categories: [dotfiles, cli]
+eval: false
+include-in-header:
+  - text: <script src="../../resources/lang-tag.js"></script>
+---
+
+When I started my PhD, my school gave me a MacBook Pro from 2019/20 that I used
+for my first year. I later got a Thinkpad from my lab since I missed the more
+easily customizable Linux experience. However, I liked, to a degree, the MacOS
+spotlight app to search your system for files which could be bound to a keyboard
+shortcut. I wanted something similar but better for linux that could search for
+and open files.
+
+I started with [fzf](https://github.com/junegunn/fzf) which provides a powerful
+way to create a command line interface. Along with
+[fd](https://github.com/sharkdp/fd), it provides a very fast and flexible way to
+search your system.
+
+```bash
+#! /usr/bin/env bash
+export FD_COMMAND="fd -L --no-ignore-vcs"
+export FD_NOIGNORE="fd -L --no-ignore"
+export FZF_DEFAULT_COMMAND="$FD_COMMAND"
+```
+
+These variables setup two fd commands, the first ignores files in the global fd
+ignore file while the second ignores nothing.
+
+```bash
+# bindings
+export RELOAD="ctrl-r"             # reload interface and search
+export IGNORE="alt-i"              # don't ignore globally ignored
+export SEL="ctrl-i"                # toggle line selection 
+export SEL_ALL="alt-a"             # select all results
+export DESEL_ALL="alt-A"           # deselect all results
+export SEARCH_DIRS="ctrl-d"        # filter to directories
+export SEARCH_FILES="ctrl-f"       # filter to files
+export DELETE="alt-r"              # delete file (with confirmation)
+export XDRAGON="ctrl-t"            # send file to xdragon
+export TOGGLE_SORT="ctrl-s"        # toggle fzf sorting mechanism
+export COPY_PATH="ctrl-y"          # copy the filepath to clipboard
+export TOGGLE_PREVIEW="ctrl-space" # toggle the preview pane
+export PREVIEW_DOWN="alt-d"        # scroll preview down
+export PREVIEW_UP="alt-u"          # scroll preview up
+export CLEAR_IMG="ctrl-/"          # clear shown images
+```
+
+fzf allows running commands or changing the interface using keybindings.
+
+```bash
+files=$(fzf \
+    --extended \                        # extended search mode
+    --multi \                           # 
+    --border \                          #
+    --padding 1 \                       #
+    --prompt "Search> " \               #
+    --ghost "filename .ext 'exact " \
+```
+
+```bash
+    --bind change:first \
+    --bind "$RELOAD:change-prompt(Search> )+reload($FD_COMMAND)" \
+    --bind "$IGNORE:reload($FD_NOIGNORE)" \
+    --bind "$SEL:toggle-out" \
+    --bind "$SEL_ALL:select-all" \
+    --bind "$DESEL_ALL:deselect-all" \
+    --bind "$SEARCH_DIRS:change-prompt(Directories only> )+reload(fd -L --type d)+execute(kitty icat --clear)" \
+    --bind "$SEARCH_FILES:change-prompt(Files only> )+reload($FD_COMMAND)" \
+    --bind "$RELOAD:change-prompt(Search> )+reload($FD_COMMAND)" \
+    --bind "$DELETE:execute(rm -i {})+reload($FD_COMMAND)" \
+    --bind "$XDRAGON:become(setsid -f dragon -x -a {+} && kill \"$$\")" \
+    --bind "$TOGGLE_SORT:toggle-sort" \
+    --bind "$COPY_PATH:become(timeout 1s xclip -se c <(realpath {}) && kill \"$$\")" \
+    --bind "$TOGGLE_PREVIEW:toggle-preview+execute(kitty icat --clear)" \
+    --bind "$PREVIEW_DOWN:preview-down" \
+    --bind "$PREVIEW_UP:preview-up" \
+    --bind "$CLEAR_IMG:change-preview-window(hidden)+execute(kitty icat --clear)" \
+    --header "$DESEL_ALL/A: Select/deselect all | $SEARCH_DIRS: Search dirs | $SEARCH_FILES: Search files | $XDRAGON: Open with xdragon | $TOGGLE_PREVIEW: toggle preview | $CLEAR_IMG: clear images" \
+```
+
+```bash
+    --preview-window hidden \
+    --preview "
+        if file --mime-type {} | grep -qF 'image/'; then
+           kitty icat --clear --transfer-mode=stream --stdin=no --place=\${FZF_PREVIEW_COLUMNS}x\${FZF_PREVIEW_LINES}@0x0 {}
+        elif file --mime-type {} | grep -qF 'text/csv'; then
+          csview {}
+        elif file --mime-type {} | grep -qF 'inode/directory'; then
+           eza --tree --color --icons {}
+        else
+          bat --color=always {}
+        fi
+    "
+)
+```
+
+```bash
+echo "$files"
+for file in $files; do
+    setsid -f xdg-open $file
+done
+```
+
+<details>
+<summary>Full script</summary>
+
+```bash
+#! /usr/bin/env bash
+export FD_COMMAND="fd -L --no-ignore-vcs"
+export FD_NOIGNORE="fd -L --no-ignore"
+export FZF_DEFAULT_COMMAND="$FD_COMMAND | sed 's/^.\///'"
+# bindings
+export RELOAD="ctrl-r"
+export IGNORE="alt-i"
+export SEL="ctrl-i"
+export SEL_ALL="alt-a"
+export DESEL_ALL="alt-A"
+export SEARCH_DIRS="ctrl-d"
+export SEARCH_FILES="ctrl-f"
+export DELETE="alt-r"
+export XDRAGON="ctrl-t"
+export TOGGLE_SORT="ctrl-s"
+export COPY_PATH="ctrl-y"
+export TOGGLE_PREVIEW="ctrl-space"
+export PREVIEW_DOWN="alt-d"
+export PREVIEW_UP="alt-u"
+export CLEAR_IMG="ctrl-/"
+files=$(fzf \
+    --extended \
+    --multi \
+    --border \
+    --padding 1 \
+    --prompt "Search> " \
+    --ghost "filename .ext 'exact " \
+    --bind change:first \
+    --bind "$RELOAD:change-prompt(Search> )+reload($FD_COMMAND)" \
+    --bind "$IGNORE:reload($FD_NOIGNORE)" \
+    --bind "$SEL:toggle-out" \
+    --bind "$SEL_ALL:select-all" \
+    --bind "$DESEL_ALL:deselect-all" \
+    --bind "$SEARCH_DIRS:change-prompt(Directories only> )+reload(fd -L --type d)+execute(kitty icat --clear)" \
+    --bind "$SEARCH_FILES:change-prompt(Files only> )+reload($FD_COMMAND)" \
+    --bind "$RELOAD:change-prompt(Search> )+reload($FD_COMMAND)" \
+    --bind "$DELETE:execute(rm -i {})+reload($FD_COMMAND)" \
+    --bind "$XDRAGON:become(setsid -f dragon -x -a {+} && kill \"$$\")" \
+    --bind "$TOGGLE_SORT:toggle-sort" \
+    --bind "$COPY_PATH:become(timeout 1s xclip -se c <(realpath {}) && kill \"$$\")" \
+    --bind "$TOGGLE_PREVIEW:toggle-preview+execute(kitty icat --clear)" \
+    --bind "$PREVIEW_DOWN:preview-down" \
+    --bind "$PREVIEW_UP:preview-up" \
+    --bind "$CLEAR_IMG:change-preview-window(hidden)+execute(kitty icat --clear)" \
+    --header "$DESEL_ALL/A: Select/deselect all | $SEARCH_DIRS: Search dirs | $SEARCH_FILES: Search files | $XDRAGON: Open with xdragon | $TOGGLE_PREVIEW: toggle preview | $CLEAR_IMG: clear images" \
+    --preview-window hidden \
+    --preview "
+        if file --mime-type {} | grep -qF 'image/'; then
+           kitty icat --clear --transfer-mode=stream --stdin=no --place=\${FZF_PREVIEW_COLUMNS}x\${FZF_PREVIEW_LINES}@0x0 {}
+        elif file --mime-type {} | grep -qF 'text/csv'; then
+          csview {}
+        else
+          bat --color=always {}
+        fi
+    "
+)
+echo "$files"
+for file in $files; do
+    setsid -f xdg-open $file
+done
+```
+</details>
