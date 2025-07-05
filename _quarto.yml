@@ -1,5 +1,8 @@
 project:
   type: website
+  resources:
+    - "resources/font"
+
 website:
   title: "bases or bytes?"
   navbar:
@@ -14,3 +17,7 @@ website:
         href: https://orcid.org/0000-0001-6016-3598
       - text: "{{< ai google-scholar >}}"
         href: https://scholar.google.com/citations?user=xAWzm0EAAAAJ
+format:
+  html:
+    theme: [./resources/themes/dark.scss, styles.scss]
+    highlight-style: gruvbox
