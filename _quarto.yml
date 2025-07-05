@@ -1,0 +1,16 @@
+project:
+  type: website
+website:
+  title: "bases or bytes?"
+  navbar:
+    left:
+      - about.qmd
+      - index.qmd
+      - software.qmd
+    right:
+      - icon: github
+        href: https://github.com/jamespeapen
+      - text: "{{< ai orcid >}}"
+        href: https://orcid.org/0000-0001-6016-3598
+      - text: "{{< ai google-scholar >}}"
+        href: https://scholar.google.com/citations?user=xAWzm0EAAAAJ
