@@ -24,7 +24,9 @@
      shellHook = ''
         mkdir -p "$HOME/.R"
         export R_LIBS_USER="$HOME/.R"
-        R -q -e "renv::lockfile_write(renv::lockfile_create())"
+        if [[ flake.nix -nt renv.lock ]] || [[ flake.lock -nt renv.lock ]]; then
+          R -q -e "renv::lockfile_write(renv::lockfile_create())"
+        fi
         '';
     };
   });
