@@ -5,6 +5,7 @@ author: "James Eapen"
 date: "July 05, 2025"
 categories: [dotfiles, cli, vim]
 eval: false
+reading-time: true
 include-in-header:
   - text: <script src="../../resources/lang-tag.js"></script>
 ---
