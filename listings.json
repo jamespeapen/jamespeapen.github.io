@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/renv_flake.html",
       "/posts/vimmy/index.html"
     ]
   }
