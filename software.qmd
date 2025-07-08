@@ -8,7 +8,14 @@ title: "Software"
 
 An R package to analyse Seahorse data.
 
-[{{< fa brands r-project size=2x >}}](https://cran.r-project.org/package=ceas)&nbsp;&nbsp;&nbsp;&nbsp;[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/ceas)
+[{{< ai doi size=2x >}}](https://doi.org/10.1093/bioinformatics/btae503)
+&nbsp;&nbsp;&nbsp;&nbsp;
+[{{< ai pubmed size=2x >}}](https://pubmed.ncbi.nlm.nih.gov/39133136/)
+&nbsp;&nbsp;&nbsp;&nbsp;
+[{{< fa brands r-project size=2x >}}](https://cran.r-project.org/package=ceas)
+&nbsp;&nbsp;&nbsp;&nbsp;
+[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/ceas)
+&nbsp;&nbsp;&nbsp;&nbsp;
 
 ### [iscream](https://huishenlab.github.io/iscream)
 
