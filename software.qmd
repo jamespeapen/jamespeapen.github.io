@@ -29,3 +29,50 @@ An R package to query and summarize BED files fast
 An R package to infer chromatin compartments from scRNA/scATAC data.
 
 [{{< fa brands github size=2x >}}](https://github.com/huishenlab/compartmap)
+
+
+## Scripts
+
+Automate the boring stuff
+
+### [spotlight](./posts/spotlight)
+
+Search, preview, copy paths, drag and drop, open files on your system  
+Needs:
+[fzf](https://github.com/junegunn/fzf),
+[ripgrep](https://github.com/BurntSushi/ripgrep),
+[xdragon](https://github.com/mwh/dragon),
+[csview](https://github.com/wfxr/csview),
+[eza](https://eza.rocks/),
+[bat](https://github.com/sharkdp/bat),
+[kitty](https://sw.kovidgoyal.net/kitty/)
+
+[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/dotfiles/blob/master/bin/spotlight)
+
+### [vimmy](./posts/vimmy)
+
+Launch a temporary vim buffer, then auto type the input into a non-vim text
+input  
+Needs:
+[neovim](https://neovim.io/),
+[xdotool](https://github.com/jordansissel/xdotool)
+
+[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/dotfiles/blob/master/bin/vimmy)
+
+### noaa-wallpaper
+
+Set the latest GEOS full disk image as wallpaper  
+Needs:
+[imagemagik](https://imagemagick.org/),
+[feh](https://feh.finalrewind.org/)
+
+[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/dotfiles/blob/master/bin/noaa)
+
+### journal
+
+Query DOI, NCBI API to get journal information
+Needs:
+[jq](https://jqlang.org/),
+[yg-go](https://mikefarah.gitbook.io/yq/)
+
+[{{< fa brands github size=2x >}}](https://github.com/jamespeapen/dotfiles/blob/master/bin/journal)
