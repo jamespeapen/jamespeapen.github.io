@@ -1,0 +1,64 @@
+---
+title: "Nix flakes with renv"
+author: "James Eapen"
+date: "2025-07-07"
+categories: [R, nix]
+eval: false
+reading-time: true
+include-in-header:
+  - text: <script src="../resources/lang-tag.js"></script>
+---
+
+I've been using Nix-based development environments for my projects for the last
+two years to declaratively install dependencies and define environment
+variables. Installing packages, from both
+[nixpkgs](https://github.com/NixOS/nixpkgs) and source, is reproducible. Making
+modifications like compiling something with an optional dependency or applying
+patches is easy. With [direnv](https://direnv.net/), you get a pseudo-container
+every time you enter the project directory with all software and variables
+available. Recently I've started using Nix
+[flakes](https://zero-to-nix.com/concepts/flakes/) to set up and maintain the
+tools I need, all off one nixpkgs commit with versions locked by `flake.lock`.
+Non-nix systems don't have such an easy and declarative way to lock
+dependencies, especially across languages or toolchains.
+
+For this site, I use a flake to develop locally and an ubuntu runner on Github
+actions for deployment. I wanted to use the same R and package versions both
+locally and on the action runner to ensure that what works on my system works on
+Github. [`renv`](https://rstudio.github.io/renv/) is the standard way to produce
+lockfiles in R but, since it's normal operation requires initializing a project
+and installing the packages outside nix, I didn't think I could use it. I found
+nix-based actions exist, but they are slower than installing R and the packages
+directly because they need to set up nix first.
+
+Going back to renv's documentation, I found `lockfile_create()`, a function for
+programmatic renv operations. Using `.libPaths()`, it create lockfiles from
+installed packages. Since R packages installed with nix are conveniently added
+to `.libPaths()` running `lockfile_create()` in a flake shell produces the
+required lockfile. However, since it doesn't produce any output or write files,
+it took me a while to figure out that `lockfile_write()` takes
+`lockfile_create()` to produce `renv.lock`.
+
+Adding this to a shell hook writes the `renv.lock` file on flake activation. To
+avoid running this every time I activate the environment, the shell hook only
+runs `renv` commands if `renv.lock` is older than either `flake.nix` (if adding
+or removing packages) or `flake.lock` (for updates). Every update of the flake
+will update the package versions in both the nix shell environment and the
+`renv` lockfile, controlling both the nix and the `renv` environments with just
+the flake.
+
+```nix
+...
+devShells.default = pkgs.mkShell {
+  buildInputs = [ inputs ];
+  shellHook = ''
+      if [[ flake.nix -nt renv.lock ]] || [[ flake.lock -nt renv.lock ]]; then
+        R -q -e "renv::lockfile_write(renv::lockfile_create())"
+      fi
+  '';
+}
+...
+```
+
+Until Github gets a NixOS runner, this should keep my R-nix dependencies locked
+and declaratively managed.
