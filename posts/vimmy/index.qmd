@@ -25,8 +25,8 @@ box for text entry. Word online is particularly frustrating because, for reasons
 I don't understand, it loses text after I type. I could write a whole paragraph
 and hit retrun only to lose all but the first few words I wrote.
 
-My solution, partially inspired by tools like that bring a vim buffer where you
-are, was to launch a temporary vim buffer, write in it, and when I save and
+My solution, partially inspired by tools like firenvim, bring a vim buffer where
+you are, was to launch a temporary vim buffer, write in it, and when I save and
 close the buffer, the vim and its container terminal window close and what I
 just wrote is typed into the vim-unfriendly buffer that I just had to deal with.
 
