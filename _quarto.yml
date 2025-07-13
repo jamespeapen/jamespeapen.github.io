@@ -23,5 +23,7 @@ website:
         href: index.xml
 format:
   html:
+    fontsize: 1.4rem
+    page-layout: full
     theme: [./resources/themes/dark.scss, styles.scss]
     highlight-style: gruvbox
