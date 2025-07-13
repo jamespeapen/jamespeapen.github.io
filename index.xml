@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss  xmlns:atom="http://www.w3.org/2005/Atom" 
+      xmlns:media="http://search.yahoo.com/mrss/" 
+      xmlns:content="http://purl.org/rss/1.0/modules/content/" 
+      xmlns:dc="http://purl.org/dc/elements/1.1/" 
+      version="2.0">
+<channel>
+<title>bases or bytes?</title>
+<link>https://jamespeapen.github.io/</link>
+<atom:link href="https://jamespeapen.github.io/index.xml" rel="self" type="application/rss+xml"/>
+<description>bases or bytes</description>
+<generator>quarto-1.7.31</generator>
+<lastBuildDate>Mon, 07 Jul 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>Nix flakes with renv</title>
+  <dc:creator>James Eapen</dc:creator>
+  <link>https://jamespeapen.github.io/posts/renv_flake.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<p>I’ve been using Nix-based development environments for my projects for the last two years to declaratively install dependencies and define environment variables. Installing packages, from both <a href="https://github.com/NixOS/nixpkgs">nixpkgs</a> and source, is reproducible. Making modifications like compiling something with an optional dependency or applying patches is easy. With <a href="https://direnv.net/">direnv</a>, you get a pseudo-container every time you enter the project directory with all software and variables available. Recently I’ve started using Nix <a href="https://zero-to-nix.com/concepts/flakes/">flakes</a> to set up and maintain the tools I need, all off one nixpkgs commit with versions locked by <code>flake.lock</code>. Non-nix systems don’t have such an easy and declarative way to lock dependencies, especially across languages or toolchains.</p>
+<p>For this site, I use a flake to develop locally and an ubuntu runner on Github actions for deployment. I wanted to use the same R and package versions both locally and on the action runner to ensure that what works on my system works on Github. <a href="https://rstudio.github.io/renv/"><code>renv</code></a> is the standard way to produce lockfiles in R but, since it’s normal operation requires initializing a project and installing the packages outside nix, I didn’t think I could use it. I found nix-based actions exist, but they are slower than installing R and the packages directly because they need to set up nix first.</p>
+<p>Going back to renv’s documentation, I found <code>lockfile_create()</code>, a function for programmatic renv operations. Using <code>.libPaths()</code>, it create lockfiles from installed packages. Since R packages installed with nix are conveniently added to <code>.libPaths()</code> running <code>lockfile_create()</code> in a flake shell produces the required lockfile. However, since it doesn’t produce any output or write files, it took me a while to figure out that <code>lockfile_write()</code> takes <code>lockfile_create()</code> to produce <code>renv.lock</code>.</p>
+<p>Adding this to a shell hook writes the <code>renv.lock</code> file on flake activation. To avoid running this every time I activate the environment, the shell hook only runs <code>renv</code> commands if <code>renv.lock</code> is older than either <code>flake.nix</code> (if adding or removing packages) or <code>flake.lock</code> (for updates). Every update of the flake will update the package versions in both the nix shell environment and the <code>renv</code> lockfile, controlling both the nix and the <code>renv</code> environments with just the flake.</p>
+<div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode nix code-with-copy"><code class="sourceCode nix"><span id="cb1-1"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>..</span>
+<span id="cb1-2">devShells<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>default = pkgs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>mkShell <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb1-3">  <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">buildInputs</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span> inputs <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">];</span></span>
+<span id="cb1-4">  <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">shellHook</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span></span>
+<span id="cb1-5"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">      if [[ flake.nix -nt renv.lock ]] || [[ flake.lock -nt renv.lock ]]; then</span></span>
+<span id="cb1-6"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">        R -q -e "renv::lockfile_write(renv::lockfile_create())"</span></span>
+<span id="cb1-7"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">      fi</span></span>
+<span id="cb1-8"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">  ''</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">;</span></span>
+<span id="cb1-9"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span></span>
+<span id="cb1-10"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>..</span></code></pre></div>
+<p>Until Github gets a NixOS runner, this should keep my R-nix dependencies locked and declaratively managed.</p>
+
+
+
+ ]]></description>
+  <category>R</category>
+  <category>nix</category>
+  <guid>https://jamespeapen.github.io/posts/renv_flake.html</guid>
+  <pubDate>Mon, 07 Jul 2025 00:00:00 GMT</pubDate>
+</item>
+<item>
+  <title>vimmy</title>
+  <dc:creator>James Eapen</dc:creator>
+  <link>https://jamespeapen.github.io/posts/vimmy/</link>
+  <description><![CDATA[ 
+
+
+
+
+<p>Once you learn vim and develop muscle memory for its key bindings, its quite hard to go back to a text editor without them. Emulators in other text editors don’t generally implement enough of vim’s functionality for a smooth transition and using them can be a little jarring after spending hours in a vim buffer, especially if you’ve got a specialized configuration.</p>
+<p>I use <a href="https://github.com/glacambre/firenvim">firenvim</a> for my browser to get a neovim buffer and some plugins in any text box. This is nice when I have to use a browser for email, Github, and Slack/Teams. However, when I need to write with other people, writing a response to reviewers after peer-review for example, I find myself forced to use Word online which does not use a standard text-input box for text entry. Word online is particularly frustrating because, for reasons I don’t understand, it loses text after I type. I could write a whole paragraph and hit retrun only to lose all but the first few words I wrote.</p>
+<p>My solution, partially inspired by tools like that bring a vim buffer where you are, was to launch a temporary vim buffer, write in it, and when I save and close the buffer, the vim and its container terminal window close and what I just wrote is typed into the vim-unfriendly buffer that I just had to deal with.</p>
+<div class="page-columns page-full"><p>The first problem was an extra newline getting added when catting the file. I found a solution using perl that ‘chomps’ the final newline to remove it. Then the issue was getting it into the original editor. I tried to paste it but couldn’t find a way to programmatically paste with <code>xclip</code> since <code>xclip -o</code> calls only paste into the calling terminal window. So I turned to <code>xdotool</code> to type it out. This worked but lost all newlines. I then figured out how to preserve newlines by translating the linefeed (LF) <code>\n</code> character to the carriage return (CR) <code>\r</code> character. </p><div class="no-row-height column-margin column-container"><span class="margin-aside">https://unix.stackexchange.com/questions/399403/xdotools-type-mangles-carriage-returns</span></div></div>
+<div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><span class="co" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">#! /usr/bin/env zsh</span></span>
+<span id="cb1-2"></span>
+<span id="cb1-3"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">kitty</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--class</span> flykitty <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb1-4">nvim <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb1-5">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'set laststatus=0'</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb1-6">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'set spell'</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb1-7">  <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-c</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'source ~/.config/nvim/vim/autocorrect.vim'</span> /tmp/temp_buffer</span>
+<span id="cb1-8"></span>
+<span id="cb1-9"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">perl</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-pe</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">'chomp if eof'</span> /tmp/temp_buffer <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb1-10">  <span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">tr</span> <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\\</span>n <span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\\</span>r <span class="kw" style="color: #003B4F;
+background-color: null;
+font-weight: bold;
+font-style: inherit;">|</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">\</span></span>
+<span id="cb1-11">  <span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">xdotool</span> type <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--delay</span> 0.5 <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-file</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-</span></span></code></pre></div>
+<div class="page-columns page-full"><p></p><div class="no-row-height column-margin column-container"><span class="margin-aside">the window has the ‘flykitty’ class because my i3 settings float every window of class ‘flykitty’ instead of tiling it</span></div></div>
+<p>This script launches neovim in a kitty window with spell check and <a href="https://github.com/jamespeapen/dotfiles/blob/master/config/nvim/vim/autocorrect.vim">autocorrect</a>, but without a status bar. Once saved, kitty exits and the output file is processed and typed out wherever my cursor focus was before launching the script.</p>
+
+
+
+ ]]></description>
+  <category>dotfiles</category>
+  <category>cli</category>
+  <category>vim</category>
+  <guid>https://jamespeapen.github.io/posts/vimmy/</guid>
+  <pubDate>Sat, 05 Jul 2025 00:00:00 GMT</pubDate>
+</item>
+</channel>
+</rss>
