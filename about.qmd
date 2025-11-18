@@ -15,4 +15,4 @@ about:
 
 I'm a 5<sup>th</sup>-year PhD student in the [Shen
 lab](https://shenlab.vai.org/) at Van Andel Institute. I work on developing
-tools to study DNA methylation and chromatin architecture in Fallopian tube.
+tools to study DNA methylation and chromatin architecture in the Fallopian tube.
