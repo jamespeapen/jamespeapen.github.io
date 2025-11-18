@@ -1,0 +1,110 @@
+---
+title: "Using external libraries with Rcpp"
+subtitle: "How I got R to compile against htslib"
+author: "James Eapen"
+date: "2025-11-18"
+categories: [R, Rcpp, htslib]
+eval: false
+include-in-header:
+  - text: <script src="../resources/lang-tag.js"></script>
+---
+
+Developing R packages using Rcpp doesn't usually require external libraries.
+But, when you do need one, the nice thing about the Rcpp 'universe' is that many
+are available on CRAN already bundled as R packages like RcppEigen,
+RcppArmadillo, and RcppSpdlog. Just adding the required package to the
+`Linkingto` field in the `DESCRIPTION` file, you can link and compile your
+package against them. I've been working on
+[iscream](https://huishenlab.github.io/iscream), a fast and flexible BED file
+querying package, and needed to compile against
+[*htslib*](https://github.com/samtools/htslib) headers.
+
+*htslib* provides a C API to read and manipulate genomic file formats like SAM,
+BAM, and [BED](https://en.wikipedia.org/wiki/BED_(file_format)) which are
+usually stored compressed. With BED files every line is a genomic location
+described by coordinates composed of chromosome ID, start position and end
+position. Given a set of query coordinates, *htslibs* can extract records inside
+those regions without decompressing the BED files.
+
+Like the bundled Rcpp packages, *Rhtslib* links *htslib* headers for use with R.
+However, unlike those package, *Rhtslib* tends to update its *htslib* files very
+slowly and I wanted to allow users to benefit from htslib updates independent
+of *iscream* updates. At the time I also hadn't decided whether to submit to
+CRAN or Bioconductor and I wasn't sure if a CRAN package should have a
+Bioconductor dependency. [To be fair, the slow updates do provide a stable API
+for the many packages that depend on *Rhslib*]{.aside}
+
+At first I just used a nix environment and extracted the required htslib paths
+to environment variables. This was obviously temporary since the flags are
+system-dependent and, in this case, are for the nixpkgs version of htslib.
+
+```nix
+...
+in mkShell {
+  nativeBuildInputs = [
+    ...
+];
+shellHook = ''
+export I_R=${pkgs.R}/lib/R/include/
+shellHook = ''
+  export I_HTSLIB=${pkgs.htslib}/include/
+  export L_HTSLIB=${pkgs.htslib}/lib/libhts.a
+  export L_CURL=${pkgs.curl.out}/lib/libcurl.so
+...
+''
+```
+
+These were hardcoded in `Makevars`, a file that tells the R package installer
+how to compile and install the package:
+
+```Makefile
+PKG_CPPFLAGS=-I $(I_HTSLIB)
+PKG_LIBS=$(L_HTSLIB) $(L_CURL) $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+```
+
+I then learned to use `pkg-config` to pass *htslib* include flags to `Makevars`:
+
+```Makefile
+PKG_CPPFLAGS=`pkg-config --cflags htslib`
+PKG_LIBS=`pkg-config --libs htslib` $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS = $(SHLIB_OPENMP_CXXFLAGS)
+```
+
+This is more portable, but requires `pkg-config` and a recent *htslib*
+installation. Installing using older *htslib* versions would fail with unhelpful
+errors. Then *iscream's* first round of manuscript reviewers asked me to support
+a *htslib* source like *Rhtslib* that didn't need admin permissions to install.
+Looking for a more robust solution that clearly stated error messages on failure
+and fell back to *Rhtslib* if a system *htslib* was unavailable, I found the
+configure script from the [curl package](https://cran.r-project.org/package=curl).
+This script finds the libcurl headers, verifies that compiling with them is
+possible, and sets up the R package installer to use it. I adapted this to find
+htslib headers and create the `Makevars` file dynamically using a template
+`Makevars.in`:
+
+```Makefile
+CXX_STD=CXX17
+PKG_CPPFLAGS=@cflags@
+PKG_LIBS=@libs@ $(SHLIB_OPENMP_CXXFLAGS)
+PKG_CXXFLAGS=$(SHLIB_OPENMP_CXXFLAGS)
+```
+
+```sh
+...
+PKG_CFLAGS=$(pkg-config --cflags $PKG_CONFIG_NAME 2> /dev/null)
+PKG_LIBS=$(pkg-config --libs $PKG_CONFIG_NAME 2> /dev/null)
+...
+sed -e "s|@cflags@|$PKG_CFLAGS|" -e "s|@libs@|$PKG_LIBS|" src/Makevars.in > src/Makevars
+```
+
+[configure](https://github.com/huishenlab/iscream/blob/main/configure) writes
+`Makevars` by replacing `@cflags@` and `@libs@` with the corresponding flags. If
+`pkg-config` or *htslib* is not available it falls back to *Rhtslib* as the
+header source, informing users about the advantages of using a system *htslib*
+instead of *Rhtslib*. It also checks that the compiler and *htslib* met the
+minimum versions requirements. The biggest advantage here is that users can
+install *htslib* with *libdeflate* support for significant performance
+improvements (the subject of a future post).
+
+Any header that `pkg-config` can find, R can use.
