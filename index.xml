@@ -10,7 +10,293 @@
 <atom:link href="https://jamespeapen.github.io/index.xml" rel="self" type="application/rss+xml"/>
 <description>bases or bytes</description>
 <generator>quarto-1.7.31</generator>
-<lastBuildDate>Mon, 07 Jul 2025 00:00:00 GMT</lastBuildDate>
+<lastBuildDate>Tue, 18 Nov 2025 00:00:00 GMT</lastBuildDate>
+<item>
+  <title>Using external libraries with Rcpp</title>
+  <dc:creator>James Eapen</dc:creator>
+  <link>https://jamespeapen.github.io/posts/rcpp_library.html</link>
+  <description><![CDATA[ 
+
+
+
+
+<p>Developing R packages using Rcpp doesn’t usually require external libraries. But, when you do need one, the nice thing about the Rcpp ‘universe’ is that many are available on CRAN already bundled as R packages like RcppEigen, RcppArmadillo, and RcppSpdlog. Just adding the required package to the <code>Linkingto</code> field in the <code>DESCRIPTION</code> file, you can link and compile your package against them. I’ve been working on <a href="https://huishenlab.github.io/iscream">iscream</a>, a fast and flexible BED file querying package, and needed to compile against <a href="https://github.com/samtools/htslib"><em>htslib</em></a> headers.</p>
+<p><em>htslib</em> provides a C API to read and manipulate genomic file formats like SAM, BAM, and <a href="https://en.wikipedia.org/wiki/BED_(file_format)">BED</a> which are usually stored compressed. With BED files every line is a genomic location described by coordinates composed of chromosome ID, start position and end position. Given a set of query coordinates, <em>htslibs</em> can extract records inside those regions without decompressing the BED files.</p>
+<div class="page-columns page-full"><p>Like the bundled Rcpp packages, <em>Rhtslib</em> links <em>htslib</em> headers for use with R. However, unlike those package, <em>Rhtslib</em> tends to update its <em>htslib</em> files very slowly and I wanted to allow users to benefit from htslib updates independent of <em>iscream</em> updates. At the time I also hadn’t decided whether to submit to CRAN or Bioconductor and I wasn’t sure if a CRAN package should have a Bioconductor dependency. </p><div class="no-row-height column-margin column-container"><span class="margin-aside">To be fair, the slow updates do provide a stable API for the many packages that depend on <em>Rhslib</em></span></div></div>
+<p>At first I just used a nix environment and extracted the required htslib paths to environment variables. This was obviously temporary since the flags are system-dependent and, in this case, are for the nixpkgs version of htslib.</p>
+<div class="sourceCode" id="cb1" style="background: #f1f3f5;"><pre class="sourceCode nix code-with-copy"><code class="sourceCode nix"><span id="cb1-1"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>..</span>
+<span id="cb1-2">in mkShell <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span></span>
+<span id="cb1-3">  <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">nativeBuildInputs</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span> <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">[</span></span>
+<span id="cb1-4">    <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>..</span>
+<span id="cb1-5">];</span>
+<span id="cb1-6">shellHook = <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">''</span></span>
+<span id="cb1-7"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">export I_R=</span><span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">${</span>pkgs<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>R<span class="sc" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/lib/R/include/</span></span>
+<span id="cb1-8"><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">shellHook = ''</span></span>
+<span id="cb1-9">  export I_HTSLIB=$<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pkgs</span>.<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">htslib</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/include</span>/</span>
+<span id="cb1-10">  export L_HTSLIB=$<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pkgs</span>.<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">htslib</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/lib/libhts.a</span></span>
+<span id="cb1-11">  export L_CURL=$<span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">{</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">pkgs</span>.<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">curl</span>.<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">out</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">}</span><span class="ss" style="color: #20794D;
+background-color: null;
+font-style: inherit;">/lib/libcurl.so</span></span>
+<span id="cb1-12"><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">.</span>..</span>
+<span id="cb1-13">''</span></code></pre></div>
+<p>These were hardcoded in <code>Makevars</code>, a file that tells the R package installer how to compile and install the package:</p>
+<div class="sourceCode" id="cb2" style="background: #f1f3f5;"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb2-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_CPPFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">-I </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">I_HTSLIB</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb2-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_LIBS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">L_HTSLIB</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">L_CURL</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SHLIB_OPENMP_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb2-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_CXXFLAGS</span> <span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SHLIB_OPENMP_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div>
+<p>I then learned to use <code>pkg-config</code> to pass <em>htslib</em> include flags to <code>Makevars</code>:</p>
+<div class="sourceCode" id="cb3" style="background: #f1f3f5;"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb3-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_CPPFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`pkg-config --cflags htslib`</span></span>
+<span id="cb3-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_LIBS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">`pkg-config --libs htslib` </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SHLIB_OPENMP_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb3-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_CXXFLAGS</span> <span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;"> </span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SHLIB_OPENMP_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div>
+<p>This is more portable, but requires <code>pkg-config</code> and a recent <em>htslib</em> installation. Installing using older <em>htslib</em> versions would fail with unhelpful errors. Then <em>iscream’s</em> first round of manuscript reviewers asked me to support a <em>htslib</em> source like <em>Rhtslib</em> that didn’t need admin permissions to install. Looking for a more robust solution that clearly stated error messages on failure and fell back to <em>Rhtslib</em> if a system <em>htslib</em> was unavailable, I found the configure script from the <a href="https://cran.r-project.org/package=curl">curl package</a>. This script finds the libcurl headers, verifies that compiling with them is possible, and sets up the R package installer to use it. I adapted this to find htslib headers and create the <code>Makevars</code> file dynamically using a template <code>Makevars.in</code>:</p>
+<div class="sourceCode" id="cb4" style="background: #f1f3f5;"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb4-1"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">CXX_STD</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">CXX17</span></span>
+<span id="cb4-2"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_CPPFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@cflags@</span></span>
+<span id="cb4-3"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_LIBS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=</span><span class="fl" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">@libs@</span> <span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SHLIB_OPENMP_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb4-4"><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">PKG_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">=$(</span><span class="dt" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">SHLIB_OPENMP_CXXFLAGS</span><span class="ch" style="color: #20794D;
+background-color: null;
+font-style: inherit;">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb5" style="background: #f1f3f5;"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">...</span></span>
+<span id="cb5-2"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">PKG_CFLAGS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pkg-config</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--cflags</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PKG_CONFIG_NAME</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> /dev/null<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb5-3"><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">PKG_LIBS</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">=</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$(</span><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">pkg-config</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">--libs</span> <span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PKG_CONFIG_NAME</span> <span class="dv" style="color: #AD0000;
+background-color: null;
+font-style: inherit;">2</span><span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> /dev/null<span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">)</span></span>
+<span id="cb5-4"><span class="ex" style="color: null;
+background-color: null;
+font-style: inherit;">...</span></span>
+<span id="cb5-5"><span class="fu" style="color: #4758AB;
+background-color: null;
+font-style: inherit;">sed</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"s|@cflags@|</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PKG_CFLAGS</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|"</span> <span class="at" style="color: #657422;
+background-color: null;
+font-style: inherit;">-e</span> <span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">"s|@libs@|</span><span class="va" style="color: #111111;
+background-color: null;
+font-style: inherit;">$PKG_LIBS</span><span class="st" style="color: #20794D;
+background-color: null;
+font-style: inherit;">|"</span> src/Makevars.in <span class="op" style="color: #5E5E5E;
+background-color: null;
+font-style: inherit;">&gt;</span> src/Makevars</span></code></pre></div>
+<p><a href="https://github.com/huishenlab/iscream/blob/main/configure">configure</a> writes <code>Makevars</code> by replacing <code>@cflags@</code> and <code>@libs@</code> with the corresponding flags. If <code>pkg-config</code> or <em>htslib</em> is not available it falls back to <em>Rhtslib</em> as the header source, informing users about the advantages of using a system <em>htslib</em> instead of <em>Rhtslib</em>. It also checks that the compiler and <em>htslib</em> met the minimum versions requirements. The biggest advantage here is that users can install <em>htslib</em> with <em>libdeflate</em> support for significant performance improvements (the subject of a future post).</p>
+<p>Any header that <code>pkg-config</code> can find, R can use.</p>
+
+
+
+ ]]></description>
+  <category>R</category>
+  <category>Rcpp</category>
+  <category>htslib</category>
+  <guid>https://jamespeapen.github.io/posts/rcpp_library.html</guid>
+  <pubDate>Tue, 18 Nov 2025 00:00:00 GMT</pubDate>
+</item>
 <item>
   <title>Nix flakes with renv</title>
   <dc:creator>James Eapen</dc:creator>

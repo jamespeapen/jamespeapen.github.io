@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="James Eapen">
-<meta name="dcterms.date" content="2025-07-07">
+<meta name="dcterms.date" content="2025-11-18">
 
-<title>Nix flakes with renv – bases or bytes?</title>
+<title>Using external libraries with Rcpp – bases or bytes?</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -171,22 +171,26 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-full page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
+        
+    </div>
 <!-- main -->
-<main class="content column-page" id="quarto-document-content">
+<main class="content page-columns page-full column-page-left" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Nix flakes with renv</h1>
+<h1 class="title">Using external libraries with Rcpp</h1>
+<p class="subtitle lead">How I got R to compile against htslib</p>
   <div class="quarto-categories">
     <div class="quarto-category">R</div>
-    <div class="quarto-category">nix</div>
+    <div class="quarto-category">Rcpp</div>
+    <div class="quarto-category">htslib</div>
   </div>
   </div>
 
 
 
-<div class="quarto-title-meta column-page">
+<div class="quarto-title-meta column-page-left">
 
     <div>
     <div class="quarto-title-meta-heading">Author</div>
@@ -198,7 +202,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 7, 2025</p>
+      <p class="date">November 18, 2025</p>
     </div>
   </div>
   
@@ -210,21 +214,43 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </header>
 
 
-<p>I’ve been using Nix-based development environments for my projects for the last two years to declaratively install dependencies and define environment variables. Installing packages, from both <a href="https://github.com/NixOS/nixpkgs">nixpkgs</a> and source, is reproducible. Making modifications like compiling something with an optional dependency or applying patches is easy. With <a href="https://direnv.net/">direnv</a>, you get a pseudo-container every time you enter the project directory with all software and variables available. Recently I’ve started using Nix <a href="https://zero-to-nix.com/concepts/flakes/">flakes</a> to set up and maintain the tools I need, all off one nixpkgs commit with versions locked by <code>flake.lock</code>. Non-nix systems don’t have such an easy and declarative way to lock dependencies, especially across languages or toolchains.</p>
-<p>For this site, I use a flake to develop locally and an ubuntu runner on Github actions for deployment. I wanted to use the same R and package versions both locally and on the action runner to ensure that what works on my system works on Github. <a href="https://rstudio.github.io/renv/"><code>renv</code></a> is the standard way to produce lockfiles in R but, since it’s normal operation requires initializing a project and installing the packages outside nix, I didn’t think I could use it. I found nix-based actions exist, but they are slower than installing R and the packages directly because they need to set up nix first.</p>
-<p>Going back to renv’s documentation, I found <code>lockfile_create()</code>, a function for programmatic renv operations. Using <code>.libPaths()</code>, it create lockfiles from installed packages. Since R packages installed with nix are conveniently added to <code>.libPaths()</code> running <code>lockfile_create()</code> in a flake shell produces the required lockfile. However, since it doesn’t produce any output or write files, it took me a while to figure out that <code>lockfile_write()</code> takes <code>lockfile_create()</code> to produce <code>renv.lock</code>.</p>
-<p>Adding this to a shell hook writes the <code>renv.lock</code> file on flake activation. To avoid running this every time I activate the environment, the shell hook only runs <code>renv</code> commands if <code>renv.lock</code> is older than either <code>flake.nix</code> (if adding or removing packages) or <code>flake.lock</code> (for updates). Every update of the flake will update the package versions in both the nix shell environment and the <code>renv</code> lockfile, controlling both the nix and the <code>renv</code> environments with just the flake.</p>
+<p>Developing R packages using Rcpp doesn’t usually require external libraries. But, when you do need one, the nice thing about the Rcpp ‘universe’ is that many are available on CRAN already bundled as R packages like RcppEigen, RcppArmadillo, and RcppSpdlog. Just adding the required package to the <code>Linkingto</code> field in the <code>DESCRIPTION</code> file, you can link and compile your package against them. I’ve been working on <a href="https://huishenlab.github.io/iscream">iscream</a>, a fast and flexible BED file querying package, and needed to compile against <a href="https://github.com/samtools/htslib"><em>htslib</em></a> headers.</p>
+<p><em>htslib</em> provides a C API to read and manipulate genomic file formats like SAM, BAM, and <a href="https://en.wikipedia.org/wiki/BED_(file_format)">BED</a> which are usually stored compressed. With BED files every line is a genomic location described by coordinates composed of chromosome ID, start position and end position. Given a set of query coordinates, <em>htslibs</em> can extract records inside those regions without decompressing the BED files.</p>
+<div class="page-columns page-full"><p>Like the bundled Rcpp packages, <em>Rhtslib</em> links <em>htslib</em> headers for use with R. However, unlike those package, <em>Rhtslib</em> tends to update its <em>htslib</em> files very slowly and I wanted to allow users to benefit from htslib updates independent of <em>iscream</em> updates. At the time I also hadn’t decided whether to submit to CRAN or Bioconductor and I wasn’t sure if a CRAN package should have a Bioconductor dependency. </p><div class="no-row-height column-margin column-container"><span class="margin-aside">To be fair, the slow updates do provide a stable API for the many packages that depend on <em>Rhslib</em></span></div></div>
+<p>At first I just used a nix environment and extracted the required htslib paths to environment variables. This was obviously temporary since the flags are system-dependent and, in this case, are for the nixpkgs version of htslib.</p>
 <div class="sourceCode" id="cb1"><pre class="sourceCode nix code-with-copy"><code class="sourceCode nix"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>..</span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>devShells<span class="op">.</span>default = pkgs<span class="op">.</span>mkShell <span class="op">{</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">buildInputs</span> <span class="op">=</span> <span class="op">[</span> inputs <span class="op">];</span></span>
-<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>  <span class="va">shellHook</span> <span class="op">=</span> <span class="st">''</span></span>
-<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="st">      if [[ flake.nix -nt renv.lock ]] || [[ flake.lock -nt renv.lock ]]; then</span></span>
-<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="st">        R -q -e "renv::lockfile_write(renv::lockfile_create())"</span></span>
-<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="st">      fi</span></span>
-<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="st">  ''</span><span class="op">;</span></span>
-<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
-<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>..</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-<p>Until Github gets a NixOS runner, this should keep my R-nix dependencies locked and declaratively managed.</p>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>in mkShell <span class="op">{</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="va">nativeBuildInputs</span> <span class="op">=</span> <span class="op">[</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>    <span class="op">.</span>..</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>];</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>shellHook = <span class="st">''</span></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="st">export I_R=</span><span class="sc">${</span>pkgs<span class="op">.</span>R<span class="sc">}</span><span class="st">/lib/R/include/</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="st">shellHook = ''</span></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>  export I_HTSLIB=$<span class="op">{</span><span class="va">pkgs</span>.<span class="va">htslib</span><span class="op">}</span><span class="ss">/include</span>/</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>  export L_HTSLIB=$<span class="op">{</span><span class="va">pkgs</span>.<span class="va">htslib</span><span class="op">}</span><span class="ss">/lib/libhts.a</span></span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a>  export L_CURL=$<span class="op">{</span><span class="va">pkgs</span>.<span class="va">curl</span>.<span class="va">out</span><span class="op">}</span><span class="ss">/lib/libcurl.so</span></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a><span class="op">.</span>..</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>''</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>These were hardcoded in <code>Makevars</code>, a file that tells the R package installer how to compile and install the package:</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_CPPFLAGS</span><span class="ch">=</span><span class="st">-I </span><span class="ch">$(</span><span class="dt">I_HTSLIB</span><span class="ch">)</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_LIBS</span><span class="ch">=$(</span><span class="dt">L_HTSLIB</span><span class="ch">)</span><span class="st"> </span><span class="ch">$(</span><span class="dt">L_CURL</span><span class="ch">)</span><span class="st"> </span><span class="ch">$(</span><span class="dt">SHLIB_OPENMP_CXXFLAGS</span><span class="ch">)</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_CXXFLAGS</span> <span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">SHLIB_OPENMP_CXXFLAGS</span><span class="ch">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>I then learned to use <code>pkg-config</code> to pass <em>htslib</em> include flags to <code>Makevars</code>:</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_CPPFLAGS</span><span class="ch">=</span><span class="st">`pkg-config --cflags htslib`</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_LIBS</span><span class="ch">=</span><span class="st">`pkg-config --libs htslib` </span><span class="ch">$(</span><span class="dt">SHLIB_OPENMP_CXXFLAGS</span><span class="ch">)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_CXXFLAGS</span> <span class="ch">=</span><span class="st"> </span><span class="ch">$(</span><span class="dt">SHLIB_OPENMP_CXXFLAGS</span><span class="ch">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>This is more portable, but requires <code>pkg-config</code> and a recent <em>htslib</em> installation. Installing using older <em>htslib</em> versions would fail with unhelpful errors. Then <em>iscream’s</em> first round of manuscript reviewers asked me to support a <em>htslib</em> source like <em>Rhtslib</em> that didn’t need admin permissions to install. Looking for a more robust solution that clearly stated error messages on failure and fell back to <em>Rhtslib</em> if a system <em>htslib</em> was unavailable, I found the configure script from the <a href="https://cran.r-project.org/package=curl">curl package</a>. This script finds the libcurl headers, verifies that compiling with them is possible, and sets up the R package installer to use it. I adapted this to find htslib headers and create the <code>Makevars</code> file dynamically using a template <code>Makevars.in</code>:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode makefile code-with-copy"><code class="sourceCode makefile"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="dt">CXX_STD</span><span class="ch">=</span><span class="st">CXX17</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_CPPFLAGS</span><span class="ch">=</span><span class="fl">@cflags@</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_LIBS</span><span class="ch">=</span><span class="fl">@libs@</span> <span class="ch">$(</span><span class="dt">SHLIB_OPENMP_CXXFLAGS</span><span class="ch">)</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="dt">PKG_CXXFLAGS</span><span class="ch">=$(</span><span class="dt">SHLIB_OPENMP_CXXFLAGS</span><span class="ch">)</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode" id="cb5"><pre class="sourceCode sh code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="ex">...</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="va">PKG_CFLAGS</span><span class="op">=</span><span class="va">$(</span><span class="ex">pkg-config</span> <span class="at">--cflags</span> <span class="va">$PKG_CONFIG_NAME</span> <span class="dv">2</span><span class="op">&gt;</span> /dev/null<span class="va">)</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="va">PKG_LIBS</span><span class="op">=</span><span class="va">$(</span><span class="ex">pkg-config</span> <span class="at">--libs</span> <span class="va">$PKG_CONFIG_NAME</span> <span class="dv">2</span><span class="op">&gt;</span> /dev/null<span class="va">)</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="ex">...</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">sed</span> <span class="at">-e</span> <span class="st">"s|@cflags@|</span><span class="va">$PKG_CFLAGS</span><span class="st">|"</span> <span class="at">-e</span> <span class="st">"s|@libs@|</span><span class="va">$PKG_LIBS</span><span class="st">|"</span> src/Makevars.in <span class="op">&gt;</span> src/Makevars</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><a href="https://github.com/huishenlab/iscream/blob/main/configure">configure</a> writes <code>Makevars</code> by replacing <code>@cflags@</code> and <code>@libs@</code> with the corresponding flags. If <code>pkg-config</code> or <em>htslib</em> is not available it falls back to <em>Rhtslib</em> as the header source, informing users about the advantages of using a system <em>htslib</em> instead of <em>Rhtslib</em>. It also checks that the compiler and <em>htslib</em> met the minimum versions requirements. The biggest advantage here is that users can install <em>htslib</em> with <em>libdeflate</em> support for significant performance improvements (the subject of a future post).</p>
+<p>Any header that <code>pkg-config</code> can find, R can use.</p>
 
 
 

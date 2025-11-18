@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/rcpp_library.html",
       "/posts/renv_flake.html",
       "/posts/vimmy/index.html"
     ]

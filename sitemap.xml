@@ -1,23 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://jamespeapen.github.io/posts/renv_flake.html</loc>
-    <lastmod>2025-07-13T18:27:46.844Z</lastmod>
+    <loc>https://jamespeapen.github.io/about.html</loc>
+    <lastmod>2025-11-18T02:58:58.541Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jamespeapen.github.io/posts/rcpp_library.html</loc>
+    <lastmod>2025-11-18T02:58:58.541Z</lastmod>
   </url>
   <url>
     <loc>https://jamespeapen.github.io/software.html</loc>
-    <lastmod>2025-07-13T18:27:46.855Z</lastmod>
-  </url>
-  <url>
-    <loc>https://jamespeapen.github.io/about.html</loc>
-    <lastmod>2025-07-13T18:27:46.844Z</lastmod>
+    <lastmod>2025-11-18T02:58:58.553Z</lastmod>
   </url>
   <url>
     <loc>https://jamespeapen.github.io/index.html</loc>
-    <lastmod>2025-07-13T18:27:46.844Z</lastmod>
+    <lastmod>2025-11-18T02:58:58.541Z</lastmod>
   </url>
   <url>
     <loc>https://jamespeapen.github.io/posts/vimmy/index.html</loc>
-    <lastmod>2025-07-13T18:27:46.844Z</lastmod>
+    <lastmod>2025-11-18T02:58:58.542Z</lastmod>
+  </url>
+  <url>
+    <loc>https://jamespeapen.github.io/posts/renv_flake.html</loc>
+    <lastmod>2025-11-18T02:58:58.541Z</lastmod>
   </url>
 </urlset>
