@@ -23,7 +23,7 @@ other people, writing a response to reviewers after peer-review for example, I
 find myself forced to use Word online which does not use a standard text-input
 box for text entry. Word online is particularly frustrating because, for reasons
 I don't understand, it loses text after I type. I could write a whole paragraph
-and hit retrun only to lose all but the first few words I wrote.
+and hit return only to lose all but the first few words I wrote.
 
 My solution, partially inspired by tools like firenvim, bring a vim buffer where
 you are, was to launch a temporary vim buffer, write in it, and when I save and
